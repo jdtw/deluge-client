@@ -16,8 +16,23 @@
     "upload_payload_rate" "eta" "ratio" "time_added" "tracker_host"
     "save_path" "total_done" "total_uploaded" "seeds_peers_ratio"))
 
-(defvar *ui-elements* nil)
-(defvar *visible-ui* nil)
+(let ((hosts nil))
+  (defun login (password &optional (host "localhost") (port 8112))
+    (deluge:set-host host port)
+    (if (deluge:login password)
+        (progn
+          (setf hosts (mapcar (lambda (h) (deluge:get-host-status (car h)))
+                              (deluge:get-hosts)))
+          (loop
+             for h in hosts
+             for i = 0 then (1+ i)
+             do (format t "[~a] ~{~a~^ ~}~%" i (cdr h))))
+        (format t "Login failed!")))
+  (defun connect (n)
+    (deluge:connect (car (nth n hosts)))
+    (if (deluge:connected)
+        (format t "Connected")
+        (format t "Failed to connect!"))))
 
 (defun refresh (&optional state tracker &rest params)
   (apply #'deluge:update-ui
