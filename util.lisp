@@ -33,3 +33,27 @@
     (dolist (key keys)
       (setf expansion (list 'gethash key expansion default)))
     expansion))
+
+
+(defmacro with-hash-table-values ((hash-table) &body body)
+  "based on the body, bind the necessary values from the hash-table"
+  (let ((ht (gensym)))
+    `(let* ((,ht ,hash-table)
+            ,@(mapcar #'(lambda (v)
+                          `(,v (gethash ,(to-key v) ,ht nil)))
+                      (vars-in body)))
+       ,@body)))
+
+(defun to-key (sym)
+  "transforms a symbol of the form >foo_bar to a string of the form \"foo_bar\""
+  (substitute #\_ #\- (string-downcase (subseq (symbol-name sym) 1))))
+
+(defun vars-in (expr)
+  "modified from Paul Graham's version in _On Lisp_"
+  (labels ((var? (x)
+             (and (symbolp x)
+                  (eq (char (symbol-name x) 0) #\>))))
+    (if (atom expr)
+        (if (var? expr) (list expr))
+        (union (vars-in (car expr))
+               (vars-in (cdr expr))))))
