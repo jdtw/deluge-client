@@ -1,6 +1,6 @@
 ;;;; util.lisp
 
-(in-package #:deluge)
+(in-package #:deluge-client)
 
 (defun dump-hash-table (ht &optional (depth 0))
   "dumps a hash table that is explorable in org-mode"
@@ -34,7 +34,6 @@
       (setf expansion (list 'gethash key expansion default)))
     expansion))
 
-
 (defmacro with-hash-table-values ((hash-table) &body body)
   "based on the body, bind the necessary values from the hash-table"
   (let ((ht (gensym)))
@@ -57,3 +56,13 @@
         (if (var? expr) (list expr))
         (union (vars-in (car expr))
                (vars-in (cdr expr))))))
+
+(defun state-to-string (state)
+  (when state
+    (string-capitalize (symbol-name state))))
+
+(defun tracker-to-string (tracker)
+  (when tracker
+    (if (eq :error tracker)
+        (state-to-string tracker)
+        (string-downcase (symbol-name tracker)))))

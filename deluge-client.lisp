@@ -20,23 +20,55 @@
   (defun login (password &optional (host "localhost") (port 8112))
     (deluge:set-host host port)
     (if (deluge:login password)
-        (progn
-          (setf hosts (mapcar (lambda (h) (deluge:get-host-status (car h)))
-                              (deluge:get-hosts)))
-          (loop
-             for h in hosts
-             for i = 0 then (1+ i)
-             do (format t "[~a] ~{~a~^ ~}~%" i (cdr h))))
+        (hosts)
         (format t "Login failed!")))
+  (defun hosts ()
+    (setf hosts (mapcar (lambda (h) (deluge:get-host-status (car h)))
+                        (deluge:get-hosts)))
+    (loop
+       for h in hosts
+       for i = 0 then (1+ i)
+       do (format t "[~a] ~{~a~^ ~}~%" i (cdr h))))
   (defun connect (n)
     (deluge:connect (car (nth n hosts)))
     (if (deluge:connected)
         (format t "Connected")
         (format t "Failed to connect!"))))
 
-(defun refresh (&optional state tracker &rest params)
-  (apply #'deluge:update-ui
-         state tracker (or params *default-update-ui-values*)))
+(let ((torrents nil)
+      (stats nil)
+      (torrent-ids))
+  (defun refresh (&optional state tracker (params *default-update-ui-values*))
+    (let ((ui (apply #'deluge:update-ui
+                     (state-to-string state)
+                     (tracker-to-string tracker)
+                     params)))
+      (setf stats (gethash "stats" ui)
+            torrents (gethash "torrents" ui)
+            torrent-ids (make-hash-table)))
+    (stats)
+    (format t "~%")
+    (torrents))
+  (defun stats ()
+    (with-hash-table-values (stats)
+      (format t "U:~a/s D:~a/s Free space:~a~%"
+              (readable-bytes >upload-rate)
+              (readable-bytes >download-rate)
+              (readable-bytes >free-space))))
+  (defun torrents ()
+    (loop
+       for k being the hash-keys in torrents
+       using (hash-value v)
+       for i = 0 then (1+ i)
+       do (with-hash-table-values (v)
+            (setf (gethash i torrent-ids) >id)
+            (format t "[~a] ~a~%    ~a -- D:~a/s U:~a/s Ratio:~$~%"
+                    i
+                    >name
+                    >state
+                    (readable-bytes >download-payload-rate)
+                    (readable-bytes >upload-payload-rate)
+                    >ratio)))))
 
 (defun torrent+ (path)
   (let ((response (deluge:upload-torrent *host* *port* (pathname path))))
