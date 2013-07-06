@@ -35,9 +35,7 @@
         (format t "Connected")
         (format t "Failed to connect!"))))
 
-(let ((torrents nil)
-      (stats nil)
-      (torrent-ids))
+(let ((torrents nil) (stats nil) (torrent-ids nil))
   (defun refresh (&optional state tracker (params *default-update-ui-values*))
     (let ((ui (apply #'deluge:update-ui
                      (state-to-string state)
@@ -60,15 +58,20 @@
        for k being the hash-keys in torrents
        using (hash-value v)
        for i = 0 then (1+ i)
-       do (with-hash-table-values (v)
-            (setf (gethash i torrent-ids) >id)
-            (format t "[~a] ~a~%    ~a -- D:~a/s U:~a/s Ratio:~$~%"
-                    i
-                    >name
-                    >state
-                    (readable-bytes >download-payload-rate)
-                    (readable-bytes >upload-payload-rate)
-                    >ratio)))))
+       do
+         (setf (gethash i torrent-ids) k)
+         (with-hash-table-values (v)
+           (format t "[~a] ~a~%    ~a -- D:~a/s U:~a/s Ratio:~$~%"
+                   i >name >state
+                   (readable-bytes >download-payload-rate)
+                   (readable-bytes >upload-payload-rate)
+                   >ratio))))
+  (defun pause (id)
+    (deluge:pause-torrent (gethash id torrent-ids)))
+  (defun resume (id)
+    (deluge:resume-torrent (gethash id torrent-ids)))
+  (defun rm (id &optional with-data)
+    (deluge:remove-torrent (gethash id torrent-ids) with-data)))
 
 (defun torrent+ (path)
   (let ((response (deluge:upload-torrent *host* *port* (pathname path))))
