@@ -44,8 +44,12 @@
        ,@body)))
 
 (defun to-key (sym)
-  "transforms a symbol of the form >foo_bar to a string of the form \"foo_bar\""
-  (substitute #\_ #\- (string-downcase (subseq (symbol-name sym) 1))))
+  "transforms a symbol of the form >foo-bar to a string of the form \"foo_bar\""
+  (let* ((symbol-name (symbol-name sym))
+         (string (if (eq (char symbol-name 0) #\>)
+                  (subseq symbol-name 1)
+                  symbol-name)))
+    (substitute #\_ #\- (string-downcase string))))
 
 (defun vars-in (expr)
   "modified from Paul Graham's version in _On Lisp_"

@@ -2,8 +2,6 @@
 
 (in-package #:deluge-client)
 
-;;; "deluge-client" goes here. Hacks and glory await!
-
 (defparameter *default-config-values*
   '("add_paused" "compact_allocation" "download_location"
     "max_connections_per_torrent" "max_download_speed_per_torrent"
@@ -35,43 +33,65 @@
         (format t "Connected")
         (format t "Failed to connect!"))))
 
-(let ((torrents nil) (stats nil) (torrent-ids nil))
-  (defun refresh (&optional state tracker (params *default-update-ui-values*))
+(let (torrents stats torrent-ids torrent-tree)
+  (defun refresh (&key state tracker (params *default-update-ui-values*) (sort :name))
     (let ((ui (apply #'deluge:update-ui
                      (state-to-string state)
                      (tracker-to-string tracker)
                      params)))
       (setf stats (gethash "stats" ui)
             torrents (gethash "torrents" ui)
-            torrent-ids (make-hash-table)))
+            torrent-ids (make-hash-table)
+            torrent-tree (make-node)))
     (stats)
     (format t "~%")
-    (torrents))
+    (torrents sort))
   (defun stats ()
     (with-hash-table-values (stats)
       (format t "U:~a/s D:~a/s Free space:~a~%"
               (readable-bytes >upload-rate)
               (readable-bytes >download-rate)
               (readable-bytes >free-space))))
-  (defun torrents ()
+  (defun torrent-lessp (t1 t2 sort)
+    "Compares two torrents based on the key specified in the sort parameter"
+    (let* ((k (to-key sort))
+           (v1 (gethashes (t1 k) torrents))
+           (v2 (gethashes (t2 k) torrents))
+           (lt (cond
+                 ((numberp v1) #'<)
+                 ((stringp v1) #'string-lessp)
+                 (t (error "Don't know how to compare that!")))))
+      (funcall lt v1 v2)))  
+  (defun torrents (sort)
     (loop
        for k being the hash-keys in torrents
        using (hash-value v)
        for i = 0 then (1+ i)
        do
-         (setf (gethash i torrent-ids) k)
-         (with-hash-table-values (v)
-           (format t "[~a] ~a~%    ~a -- D:~a/s U:~a/s Ratio:~$~%"
-                   i >name >state
-                   (readable-bytes >download-payload-rate)
-                   (readable-bytes >upload-payload-rate)
-                   >ratio))))
+         (bst-insert torrent-tree k #'(lambda (k1 k2) (torrent-lessp k1 k2 sort))))
+    (let ((i 0))
+      (bst-traverse
+       torrent-tree
+       #'(lambda (k)
+           (let ((v (gethash k torrents)))
+             (setf (gethash (incf i) torrent-ids) k)
+             (print-torrent v i))))))
   (defun pause (id)
     (deluge:pause-torrent (gethash id torrent-ids)))
   (defun resume (id)
     (deluge:resume-torrent (gethash id torrent-ids)))
   (defun rm (id &optional with-data)
     (deluge:remove-torrent (gethash id torrent-ids) with-data)))
+
+
+
+(defun print-torrent (torrent index)
+  (with-hash-table-values (torrent)
+    (format t "[~a] ~a~%    ~a -- D:~a/s U:~a/s Ratio:~$~%"
+            index >name >state
+            (readable-bytes >download-payload-rate)
+            (readable-bytes >upload-payload-rate)
+            >ratio)))
 
 (defun torrent+ (path)
   (let ((response (deluge:upload-torrent *host* *port* (pathname path))))

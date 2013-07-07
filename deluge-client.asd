@@ -8,5 +8,6 @@
   :depends-on (#:deluge)
   :components ((:file "package")
                (:file "util")
+               (:file "tree")
                (:file "deluge-client")))
 
