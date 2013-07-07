@@ -83,8 +83,6 @@
   (defun rm (id &optional with-data)
     (deluge:remove-torrent (gethash id torrent-ids) with-data)))
 
-
-
 (defun print-torrent (torrent index)
   (with-hash-table-values (torrent)
     (format t "[~a] ~a~%    ~a -- D:~a/s U:~a/s Ratio:~$~%"
@@ -94,7 +92,7 @@
             >ratio)))
 
 (defun torrent+ (path)
-  (let ((response (deluge:upload-torrent *host* *port* (pathname path))))
+  (let ((response (deluge:upload-torrent (pathname path))))
     (when (not (and (deluge:success-p response)
                     (deluge:deluge-success-p response)))
       (error "Upload failed!"))
