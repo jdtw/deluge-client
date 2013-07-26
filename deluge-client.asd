@@ -4,7 +4,7 @@
   :serial t
   :description "Deluge torrent client"
   :author "John Wood <j@jdtw.us>"
-  :license "Simplified BSD"
+  :license "MIT"
   :depends-on (#:deluge)
   :components ((:file "package")
                (:file "util")
